@@ -1,0 +1,80 @@
+import pandas as pd
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import plotly.graph_objects as go
+
+# Sample dataset
+data = {
+    'Car': ['Car A', 'Car B', 'Car C', 'Car D', 'Car E', 'Car F', 'Car G', 'Car H', 'Car I', 'Car J'],
+    'Speed_km_h': [50, 60, 55, 70, 65, 80, 75, 85, 90, 95]
+}
+
+df = pd.DataFrame(data)
+
+# Convert speed from km/h to m/s
+df['Speed_m_s'] = df['Speed_km_h'] * 1000 / 3600
+
+# Constants
+reaction_time = 1.5  # seconds
+friction_coefficient = 0.7
+gravity = 9.81  # m/s²
+
+# Calculate stopping distance
+df['Reaction_Distance_m'] = df['Speed_m_s'] * reaction_time
+df['Braking_Distance_m'] = df['Speed_m_s'] ** 2 / (2 * friction_coefficient * gravity)
+df['Stopping_Distance_m'] = df['Reaction_Distance_m'] + df['Braking_Distance_m']
+
+# Rank the cars based on stopping distance
+df['Rank'] = df['Stopping_Distance_m'].rank()
+df = df.sort_values('Rank')
+
+# Create a Dash app
+app = dash.Dash(__name__)
+
+# Create a bar chart using plotly.graph_objects
+fig = go.Figure()
+
+# Stopping Distance Bar
+fig.add_trace(go.Bar(
+    x=df['Car'],
+    y=df['Stopping_Distance_m'],
+    name='Stopping Distance (m)',
+    marker_color='blue'
+))
+
+# Speed Bar
+fig.add_trace(go.Bar(
+    x=df['Car'],
+    y=df['Speed_km_h'],
+    name='Speed (km/h)',
+    marker_color='orange'
+))
+
+# Update layout
+fig.update_layout(
+    title='Car Stopping Distances and Speed',
+    xaxis_title='Car',
+    yaxis_title='Value',
+    barmode='group'
+)
+
+# Layout of the dashboard
+app.layout = html.Div(children=[
+    html.H1(children='Car Safety Dashboard'),
+    html.Div(children='''Ranking of cars based on their stopping distances to ensure pedestrian safety.'''),
+    dcc.Graph(
+        id='stopping-distance-graph',
+        figure=fig
+    ),
+    html.H2(children='Detailed Data'),
+    html.Table([
+        html.Tr([html.Th(col) for col in df.columns])
+    ] + [
+        html.Tr([html.Td(df.iloc[i][col]) for col in df.columns]) for i in range(len(df))
+    ])
+])
+
+# Run the app
+if __name__ == '__main__':
+    app.run_server(debug=True)
